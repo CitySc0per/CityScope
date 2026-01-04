@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
+import "mapbox-gl/dist/mapbox-gl.css";
 import cities from "./data/usCities.json"; // Updated to cities with population >75k
 import { Input } from "./components/ui/input.jsx";
 import { Button } from "./components/ui/button.jsx";
@@ -16,6 +17,8 @@ export default function CityGuessGame() {
   const [guessCount, setGuessCount] = useState(0);
   const [zoomLevel, setZoomLevel] = useState(12);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const [mapError, setMapError] = useState(null);
   const filteredSuggestions = cities.filter((city) =>
     city.name.toLowerCase().startsWith(guess.toLowerCase()) && guess.length > 0
   );
@@ -27,18 +30,33 @@ export default function CityGuessGame() {
 
   useEffect(() => {
     if (selectedCity && mapContainer.current) {
-      console.log("Selected city:", selectedCity);
+      // console.log("Selected city:", selectedCity);
+      // console.log("Coordinates:", selectedCity.coords);
+      setMapLoaded(false);
+      setMapError(null);
+      
       if (map.current) map.current.remove();
       try {
         map.current = new mapboxgl.Map({
           container: mapContainer.current,
-          style: "mapbox://styles/seankane97/cmecw2dm600js01qqf6mpb6rr",
+          style: "mapbox://styles/mapbox/satellite-streets-v12",
           center: selectedCity.coords,
           zoom: zoomLevel,
           interactive: false
         });
+        
+        map.current.on('load', () => {
+          console.log("Map loaded successfully!");
+          setMapLoaded(true);
+        });
+        
+        map.current.on('error', (e) => {
+          console.error("Map error:", e);
+          setMapError(e.error?.message || "Failed to load map");
+        });
       } catch (err) {
         console.error("Mapbox failed to load:", err);
+        setMapError(err.message);
       }
     }
   }, [selectedCity, zoomLevel]);
@@ -79,15 +97,27 @@ export default function CityGuessGame() {
   };
 
   return (
-    <div className="p-4 flex flex-col gap-4">
-      <h2 className="text-red-500">React is working</h2>
-      <h1 className="text-xl font-bold">🌆 CityScope</h1>
-      <p className="text-gray-600">Can you name the city from just the map?</p>
+    <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '800px', margin: '0 auto' }}>
+      <h2 style={{ color: 'red' }}>React is working</h2>
+      <h1 style={{ fontSize: '24px', fontWeight: 'bold' }}>🌆 CityScope</h1>
+      <p style={{ color: '#4B5563' }}>Can you name the city from just the map?</p>
       {selectedCity && selectedCity.population && (
-        <p className="text-sm text-gray-500">Population: {selectedCity.population.toLocaleString()}</p>
+        <p style={{ fontSize: '14px', color: '#6B7280' }}>Population: {selectedCity.population.toLocaleString()}</p>
       )}
-      <div ref={mapContainer} className="w-full h-96 rounded-xl shadow" />
-      <div className="relative">
+      <div style={{ position: 'relative' }}>
+        <div ref={mapContainer} style={{ width: '100%', height: '400px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', backgroundColor: '#f0f0f0' }} />
+        {!mapLoaded && !mapError && (
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '18px', color: '#666' }}>
+            Loading map...
+          </div>
+        )}
+        {mapError && (
+          <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', fontSize: '14px', color: 'red', textAlign: 'center', padding: '20px' }}>
+            Error loading map: {mapError}
+          </div>
+        )}
+      </div>
+      <div style={{ position: 'relative' }}>
         <Input
           placeholder="Enter a US city (population > 75k)"
           value={guess}
@@ -96,12 +126,14 @@ export default function CityGuessGame() {
           onBlur={() => setTimeout(() => setShowSuggestions(false), 100)}
         />
         {showSuggestions && filteredSuggestions.length > 0 && (
-          <ul className="absolute z-10 bg-white border border-gray-300 w-full max-h-60 overflow-auto rounded shadow">
+          <ul style={{ position: 'absolute', zIndex: 10, backgroundColor: 'white', border: '1px solid #D1D5DB', width: '100%', maxHeight: '240px', overflow: 'auto', borderRadius: '4px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
             {filteredSuggestions.map((city) => (
               <li
                 key={city.name}
-                className="px-3 py-2 hover:bg-gray-100 cursor-pointer"
+                style={{ padding: '8px 12px', cursor: 'pointer' }}
                 onMouseDown={() => setGuess(city.name)}
+                onMouseEnter={(e) => e.target.style.backgroundColor = '#F3F4F6'}
+                onMouseLeave={(e) => e.target.style.backgroundColor = 'white'}
               >
                 {city.name}
               </li>
